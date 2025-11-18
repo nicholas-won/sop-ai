@@ -9,17 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Printer, AlertTriangle, Clock, Pencil, Trash2, Plus, ChevronUp, ChevronDown } from "lucide-react";
+import { Printer, AlertTriangle, Clock, Pencil, Trash2, Plus, ChevronUp, ChevronDown, Save } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 interface SopDisplayProps {
   data: SopSchema;
   videoFile?: File; // Optional: Only available if user uploaded a video
+  sopId?: string; // Optional: ID for saving edits to Supabase
 }
 
-export function SopDisplay({ data, videoFile }: SopDisplayProps) {
+export function SopDisplay({ data, videoFile, sopId }: SopDisplayProps) {
   // State management
   const [sopData, setSopData] = useState<SopSchema>(data);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Update step field
   const updateStep = (index: number, field: keyof SopStep, value: string | number | undefined) => {
@@ -75,12 +78,48 @@ export function SopDisplay({ data, videoFile }: SopDisplayProps) {
     setSopData({ ...sopData, [field]: value });
   };
 
+  // Save changes to Supabase
+  const handleSave = async () => {
+    if (!sopId) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('sops')
+        .update(sopData)
+        .eq('id', sopId);
+
+      if (error) {
+        console.error('Error saving SOP:', error);
+        alert('Failed to save changes. Please try again.');
+        return;
+      }
+
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving SOP:', error);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-end gap-2 mb-6 print:hidden">
+        {sopId && isEditing && (
+          <Button 
+            onClick={handleSave} 
+            variant="default"
+            disabled={isSaving}
+          >
+            <Save className="mr-2 h-4 w-4" /> 
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        )}
         <Button 
           onClick={() => setIsEditing(!isEditing)} 
-          variant={isEditing ? "default" : "outline"}
+          variant={isEditing ? "outline" : "outline"}
         >
           <Pencil className="mr-2 h-4 w-4" /> 
           {isEditing ? "Done Editing" : "Edit Mode"}

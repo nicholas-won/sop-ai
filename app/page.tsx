@@ -1,22 +1,44 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
-import { SopDisplay } from "@/components/SopDisplay";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { UploadCloud, Loader2, FileText } from "lucide-react";
 import { SopSchema } from "@/types/sop";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function Home() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("text");
   const [input, setInput] = useState(""); // For text mode
   const [uploadedFile, setUploadedFile] = useState<File | undefined>(undefined); // For video mode
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Processing...");
-  const [result, setResult] = useState<SopSchema | null>(null);
+
+  const saveAndRedirect = async (sopData: SopSchema) => {
+    try {
+      const { data, error } = await supabase
+        .from('sops')
+        .insert([sopData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving SOP:', error);
+        throw new Error('Failed to save SOP');
+      }
+
+      // Redirect to the newly created SOP page
+      router.push(`/sop/${data.id}`);
+    } catch (error) {
+      console.error('Error saving SOP:', error);
+      alert('Failed to save SOP. Please try again.');
+    }
+  };
 
   const handleGenerateText = async () => {
     setIsLoading(true);
@@ -34,9 +56,14 @@ export default function Home() {
         throw new Error('Failed to generate SOP');
       }
 
-      setResult(await res.json());
+      const sopData = await res.json();
+      
+      // Save to Supabase and redirect
+      await saveAndRedirect(sopData);
     } catch (e) { 
-      alert("Error"); 
+      console.error('Error:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Failed to generate SOP';
+      alert(`Error: ${errorMessage}`);
     } 
     finally { 
       setIsLoading(false); 
@@ -73,8 +100,10 @@ export default function Home() {
         }
       }
 
-      const data = await res.json();
-      setResult(data);
+      const sopData = await res.json();
+      
+      // Save to Supabase and redirect
+      await saveAndRedirect(sopData);
     } catch (e) { 
       console.error('Video upload error:', e);
       const errorMessage = e instanceof Error ? e.message : 'Failed to analyze video';
@@ -97,18 +126,8 @@ export default function Home() {
     maxFiles: 1 
   });
 
-  if (result) {
-    return (
-      <div className="py-8 px-4">
-        <Button onClick={() => { setResult(null); setUploadedFile(undefined); }} variant="ghost" className="mb-4">← New SOP</Button>
-        {/* Pass the file to the display so it can generate screenshots! */}
-        <SopDisplay data={result} videoFile={uploadedFile} />
-      </div>
-    );
-  }
-
   return (
-    <main className="max-w-2xl mx-auto py-12 px-4">
+    <div className="max-w-2xl mx-auto py-12 px-4">
       <h1 className="text-4xl font-bold text-center mb-8">SOP.ai</h1>
       <Card>
         <CardContent className="pt-6">
@@ -151,7 +170,7 @@ export default function Home() {
           </Tabs>
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }
 
