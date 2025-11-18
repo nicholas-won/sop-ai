@@ -3,6 +3,7 @@ export interface SopStep {
   instruction: string;
   warning?: string;
   timestamp_seconds?: number; // Critical for screenshots
+  visual_proof?: string; // Describe specific text or UI element visible at this timestamp to prove correct frame
 }
 
 export interface SopSchema {

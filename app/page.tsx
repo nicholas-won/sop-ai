@@ -60,12 +60,31 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to analyze video');
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        const errorMsg = errorData.error || `Server error: ${res.status}`;
+        
+        // Show more helpful messages for specific errors
+        if (res.status === 503) {
+          throw new Error(errorMsg || 'The AI model is currently busy. Please try again in a few moments.');
+        } else if (res.status === 429) {
+          throw new Error(errorMsg || 'Too many requests. Please wait a moment and try again.');
+        } else {
+          throw new Error(errorMsg);
+        }
       }
 
-      setResult(await res.json());
+      const data = await res.json();
+      setResult(data);
     } catch (e) { 
-      alert("Error"); 
+      console.error('Video upload error:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Failed to analyze video';
+      
+      // Show user-friendly error message
+      if (errorMessage.includes('overloaded') || errorMessage.includes('busy')) {
+        alert(`⚠️ AI Service Busy\n\n${errorMessage}\n\nTip: Wait 10-30 seconds and try again.`);
+      } else {
+        alert(`❌ Error: ${errorMessage}`);
+      }
     } 
     finally { 
       setIsLoading(false); 
