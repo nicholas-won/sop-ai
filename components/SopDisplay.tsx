@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Printer, AlertTriangle, Clock, Pencil, Trash2, Plus, ChevronUp, ChevronDown, Save } from "lucide-react";
+import { Printer, AlertTriangle, Clock, Pencil, Trash2, Plus, ChevronUp, ChevronDown, Save, Copy } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 interface SopDisplayProps {
   data: SopSchema;
@@ -104,6 +105,35 @@ export function SopDisplay({ data, videoFile, sopId }: SopDisplayProps) {
     }
   };
 
+  // Generate Markdown from SOP data
+  const generateMarkdown = (data: SopSchema): string => {
+    let markdown = `# ${data.title}\n\n`;
+    markdown += `> ${data.summary}\n\n`;
+    markdown += `## Steps\n\n`;
+    
+    data.steps.forEach((step, index) => {
+      markdown += `${index + 1}. **${step.title}**: ${step.instruction}`;
+      if (step.warning) {
+        markdown += `\n   ⚠️ **Warning**: ${step.warning}`;
+      }
+      markdown += `\n\n`;
+    });
+
+    return markdown;
+  };
+
+  // Copy markdown to clipboard
+  const handleCopyMarkdown = async () => {
+    try {
+      const markdown = generateMarkdown(sopData);
+      await navigator.clipboard.writeText(markdown);
+      toast.success("Copied to clipboard");
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-end gap-2 mb-6 print:hidden">
@@ -123,6 +153,9 @@ export function SopDisplay({ data, videoFile, sopId }: SopDisplayProps) {
         >
           <Pencil className="mr-2 h-4 w-4" /> 
           {isEditing ? "Done Editing" : "Edit Mode"}
+        </Button>
+        <Button onClick={handleCopyMarkdown} variant="outline">
+          <Copy className="mr-2 h-4 w-4" /> Copy Markdown
         </Button>
         <Button onClick={() => window.print()} variant="outline">
           <Printer className="mr-2 h-4 w-4" /> Print PDF
